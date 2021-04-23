@@ -1,10 +1,13 @@
 package bzl.init;
 
+import java.io.*;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import bzl.entity.LocalProjectConfig;
+import com.google.gson.Gson;
 import org.apache.commons.lang.RandomStringUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -22,11 +25,13 @@ import bzl.task.AdjustTimeTask;
 import bzl.task.LivePlayTask;
 import bzl.task.RtmpManagerTask;
 import utils.EncryptionUtil;
+import utils.Log;
 import utils.RedisUtils;
 
 public class SystemInit implements ApplicationContextAware{
 	private static MapService ms = new MapServiceImpl();
 	private static EntityService es = new EntityServiceImpl();
+	private Gson gson = new Gson();
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		// TODO Auto-generated method stub
@@ -38,7 +43,7 @@ public class SystemInit implements ApplicationContextAware{
 		LivePlayTask livePlayTask = new LivePlayTask();
 		livePlayTask.startListenLivePlay();
 		InitAdminUser();
-		
+		inirProjectConfit();
 	}
 	
 	public boolean InitAdminUser() {
@@ -61,5 +66,30 @@ public class SystemInit implements ApplicationContextAware{
 			return true;
 		}
 		return false;
+	}
+
+	private void inirProjectConfit(){
+		LocalProjectConfig config = null;
+		try {
+			String path = getClass().getClassLoader().getResource("/").getPath();
+			path = path.replaceAll("/WEB-INF/classes" , "/ProjectConfig/config.json");
+			FileInputStream is = new FileInputStream(path);
+			byte[] datas = new byte[500];
+			int count = is.read(datas);
+			if(count > 0){
+				String configJson = new String(datas , 0 , count);
+				config = gson.fromJson(configJson , LocalProjectConfig.class);
+				LocalProjectConfig.initLocalProjectConfig(config);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		if(config == null){
+			Log.e("SystemInit" , "config load error");
+		}else{
+			Log.i("SystemInit" , "config " + gson.toJson(config));
+		}
 	}
 }

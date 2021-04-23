@@ -18,6 +18,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import groovy.util.logging.Log4j;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.log4j.Logger;
 
@@ -38,11 +39,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
-import utils.Convert;
-import utils.EncryptionUtil;
-import utils.HttpIO;
-import utils.NetUtil;
-import utils.RedisUtils;
+import utils.*;
 import sun.rmi.log.LogHandler;
 
 /*管理员账号操作controller*/
@@ -95,7 +92,7 @@ public class AccountController {
 
 	/**
 	 * 具体获取验证码的方法
-	 * @param time
+	 *  time
 	 *            time为时戳,这样的话可以避免浏览器缓存验证码
 	 * @throws IOException
 	 */
@@ -178,20 +175,22 @@ public class AccountController {
 		JSONObject jsonBody = JSONObject.parseObject(jsonBodyStr);  
 		String userName = jsonBody.getString("username");
 		String password = jsonBody.getString("password");
-		String yzm = jsonBody.getString("yzm").toLowerCase();
+//		String yzm = jsonBody.getString("yzm").toLowerCase();
 		String forceLogin =  jsonBody.getString("force_login");//使用强制登录将会踢掉其他用户
-		String realYzm = localMemCache.getData(yzm);
+//		String realYzm = localMemCache.getData(yzm);
 		String passwordMD5 = EncryptionUtil.md5Hex(userName + password + Constant.loginSalt);
 		String oldIP = SesCheck.checkSessionCache(request,passwordMD5);
 		if((forceLogin==null || forceLogin.length() ==0) && oldIP.length() >0){
 			respJson.put("status", Constant.UserHasLogin);
 			respJson.put("msg","该用户已经在"+oldIP + "登录!");
-		}else if(null ==realYzm ||yzm==null||(!yzm.equals(realYzm) && !yzm.toLowerCase().equals(realYzm.toLowerCase()))) {
-			respJson.put("status",Constant.FAILED);// 0为成功，其他为失败
-			respJson.put("msg","验证码错误或者已经过期!");
-			localMemCache.clear(yzm);
-		}else {
-			localMemCache.clear(yzm);
+		}
+//		else if(null ==realYzm ||yzm==null||(!yzm.equals(realYzm) && !yzm.toLowerCase().equals(realYzm.toLowerCase()))) {
+//			respJson.put("status",Constant.FAILED);// 0为成功，其他为失败
+//			respJson.put("msg","验证码错误或者已经过期!");
+//			localMemCache.clear(yzm);
+//		}
+		else {
+//			localMemCache.clear(yzm);
 			User user = new User();
 			user.setPassword(passwordMD5);
 			user.setUsername(userName);
@@ -236,7 +235,7 @@ public class AccountController {
 				respJson.put("msg", "用户名或者密码错误!");
 			}
 		}
-		
+
 		HttpIO.writeResp(response, respJson);
 	}
 	

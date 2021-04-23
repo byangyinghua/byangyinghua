@@ -20,12 +20,8 @@ import java.util.zip.ZipInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import utils.Convert;
-import utils.FileUtil;
+import utils.*;
 //import net.sf.json.JSONObject;
-import utils.HttpIO;
-import utils.RedisUtils;
-import utils.StringUtil;
 import bzl.common.Constant;
 import bzl.common.SesCheck;
 import bzl.entity.Terminal;
@@ -210,14 +206,17 @@ public class TerminalController {
 			JSONObject jsonBody = JSONObject.parseObject(jsonBodyStr); 
 			TerminalGroup terminalGrp = new TerminalGroup();
 			String group_id = jsonBody.getString("gid");
-			terminalGrp.setGroup_code(jsonBody.getString("group_code"));
+			//这里去掉编号，为了不影响数据库，直接用ID填充.
+//			terminalGrp.setGroup_code(jsonBody.getString("group_code"));
 			terminalGrp.setGroup_name(jsonBody.getString("group_name"));
 			
 			if(group_id != null && group_id.length() >0) {
 				terminalGrp.setGid(jsonBody.getString("gid"));
+				terminalGrp.setGroup_code(terminalGrp.getGid());
 				result = es.update("TerminalGroup", "update", terminalGrp);
 			}else {
 				terminalGrp.setGid("gid" + new Date().getTime() + RandomStringUtils.randomAlphanumeric(6));
+				terminalGrp.setGroup_code(terminalGrp.getGid());
 				terminalGrp.setAdd_uid(adminUser.getUid());
 				result = es.insert("TerminalGroup", "insert", terminalGrp);
 			}
