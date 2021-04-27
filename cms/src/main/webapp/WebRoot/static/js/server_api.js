@@ -19,7 +19,7 @@ layui.define(["jquery",'layer'], function (exports) {
                 },
                 success: function (resp) {
                     if(resp.msg && resp.msg=="无权限操作"){
-                        window.top.location.href='/login.html';
+                        window.top.location.href='./login.html';
                     }else{
                         callback(resp);
                     }

@@ -49,6 +49,9 @@ import org.apache.log4j.Logger;
 
 public class SocketMsgHandler implements ApplicationContextAware {
 	static Logger log = Logger.getLogger(LogHandler.class);
+
+	private static SocketMsgHandler instance = new SocketMsgHandler();
+
 	private static UdpMsgAcceptor msgHandler = null;
 	private static Integer socketPort = 7654;
 	private static Integer broadcastPort = 7655;
@@ -79,6 +82,10 @@ public class SocketMsgHandler implements ApplicationContextAware {
 			es = new EntityServiceImpl();
 		}
 		return es;
+	}
+
+	public static SocketMsgHandler getInstance(){
+		return instance;
 	}
 	
 	private Map<String, Object>  getTaskInfoByTaskId(String task_id) {
@@ -466,6 +473,15 @@ public class SocketMsgHandler implements ApplicationContextAware {
 		System.out.println("\nsend find terminal broadcast msg to 192.168.255.255 !!!");
 		System.out.println("\nsend find terminal broadcast msg to 255.255.255.255 !!!");
 		System.out.println("\nsend find terminal broadcast msg to 10.168.255.255 !!!");
+	}
+
+	/**
+	 * 广播信息，暂用于校时，保证终端系统时间一致性
+	 */
+	public void broastMsg(String msgInfo){
+		if(msgHandler != null) {
+			msgHandler.sendBroastMsg("255.255.255.255", broadcastPort, SequenceUtil.getNewSequence(), 0x26, 0x01, String.valueOf(msgInfo));
+		}
 	}
 
 	// 异步转同步发送接口，等待终端返回后，接口再返回
