@@ -40,6 +40,7 @@ import bzl.service.impl.EntityServiceImpl;
 import bzl.service.impl.MapServiceImpl;
 import bzl.websocket.WebSocketEndpoint;
 import sun.rmi.log.LogHandler;
+import utils.Log;
 import utils.RedisUtils;
 
 import com.alibaba.fastjson.JSONArray;
@@ -67,7 +68,9 @@ public class SocketMsgHandler implements ApplicationContextAware {
 
 	// private static MemoryCache localMemCache = new MemoryCache();
 
-	private static int HeartBeatRate = 5; // 5s
+	private static int HeartBeatRate = 8; // 5s
+	//终端状态维持时间
+	private static int TernimalExpireTime = HeartBeatRate * 3;
 	
 	private static MapService getMsqlMapCtr() {
 		if(ms==null) {
@@ -120,6 +123,7 @@ public class SocketMsgHandler implements ApplicationContextAware {
 			if (packageType == 0x01) { // 0x01是终端请求命令
 				respBody = dealWithTerminalRequest(terminalInfo, sequece, cmd, body);
 			} else if (packageType == 0x02) { // 0x02是响应服务端的命令
+				msgHandler.receivedMsg(sequece);
 				dealWithTerminalResponse(terminalInfo, sequece, cmd, body);
 			}
 
@@ -145,7 +149,9 @@ public class SocketMsgHandler implements ApplicationContextAware {
 
 				}
 			});
-			com.boyao.boyaonetlib.util.Log.DEBUG = false;
+			//开启重发机制，超时设置为1秒，重发次数2
+			msgHandler.setResendAble(true , 1000 , 2);
+			com.boyao.boyaonetlib.util.Log.DEBUG = true;
 			findAllLocalTerminals();
 		}
 
@@ -185,21 +191,22 @@ public class SocketMsgHandler implements ApplicationContextAware {
 		}
 		//log.error("terminal request jsonBody===" + jsonBody);
 		JSONObject respBody = new JSONObject();
+		String terminal_id = jsonBody.getString("deviceId");
+		RedisUtils.refreshExpired(Constant.OnlineTerminals + ":" + terminal_id , TernimalExpireTime);
 		int result = -1;
 
 		if (cmd == cmds.HEARTBEAT) {
-			String terminal_id = jsonBody.getString("deviceId");
 			String terminal_ip = terminalInfo.getAddress().getHostAddress();
 			String deviceTime = jsonBody.getString("deviceTime");
 			String devControlStatus = jsonBody.getString("devControlStatus");
 			
 			int currentState = jsonBody.getIntValue("currentState");// 设备当前状态:1为空闲、2为任务中、3为播流中、4为其他
-			int currentVolumn = jsonBody.getIntValue("currentVolumn");
+			int currentVolume = jsonBody.getIntValue("currentVolume");
 			Terminal updateTerminal = new Terminal();
 			updateTerminal.setTerminal_id(terminal_id);
 			updateTerminal.setIp(terminal_ip);
 			//updateTerminal.setState(currentState);
-			updateTerminal.setVolume(currentVolumn);
+			updateTerminal.setVolume(currentVolume);
 			updateTerminal.setLamp_status(devControlStatus);
 		
 			judgeTerminaTime(deviceTime,terminal_ip);
@@ -208,10 +215,11 @@ public class SocketMsgHandler implements ApplicationContextAware {
 			result = getMsqlEntityCtr().update("Terminal", "update", updateTerminal);
 			if (result == 1) {
 				//RedisUtils.setExpire("online:" + terminal_id, "" + currentState, HeartBeatRate + 5);
-				RedisUtils.setExpire(Constant.OnlineTerminals + ":" + terminal_id, terminal_ip + ":" + currentState, HeartBeatRate+2);
+				RedisUtils.setExpire(Constant.OnlineTerminals + ":" + terminal_id, terminal_ip + ":" + currentState, TernimalExpireTime);
 				
 				// localMemCache.setData(terminal_id, currentState, HeartBeatRate + 5);
 				respBody.put("status", updSuccess);
+				respBody.put("serverTime" , System.currentTimeMillis());
 			} else {
 				log.error("update heartbeat online failed!");
 				respBody.put("status", udpFailed);
@@ -220,7 +228,7 @@ public class SocketMsgHandler implements ApplicationContextAware {
 			Terminal newTerminal = new Terminal();
 			Map<String,Object> condTerminal = new HashMap<String,Object>();
 			JSONObject bootInfo = JSONObject.parseObject(jsonBody.getString("bootInfo"));
-			newTerminal.setTerminal_id(jsonBody.getString("deviceId"));// deviceId 是终端的唯一标志
+			newTerminal.setTerminal_id(terminal_id);// deviceId 是终端的唯一标志
 			newTerminal.setBoot_time(bootInfo.getString("bootTime"));
 			newTerminal.setShutdown_time(bootInfo.getString("shutTime"));
 			newTerminal.setIp(terminalInfo.getAddress().getHostAddress());
@@ -238,15 +246,14 @@ public class SocketMsgHandler implements ApplicationContextAware {
 			if(terminalName !=null && terminalName.length() >0) {
 				newTerminal.setName(terminalName);
 			}
-			condTerminal.put("terminal_id",jsonBody.getString("deviceId"));// deviceId 是终端的唯一标志
+			condTerminal.put("terminal_id",terminal_id);// deviceId 是终端的唯一标志
 			List<Map<String, Object>> list = getMsqlMapCtr().selectList("Terminal", "selectByCondition", condTerminal);
 			if (list == null || list.isEmpty()) {
 				result = getMsqlEntityCtr().insert("Terminal", "insert", newTerminal);
 				if (result == 1) {
-					log.error("1111 the device has register,return ok!newTerminal=");
-					log.error(newTerminal);
+					Log.d("test" , "newTerminal is registed " + terminal_id);
 					respBody.put("status", updSuccess);
-					RedisUtils.setExpire(Constant.OnlineTerminals + ":" + jsonBody.getString("deviceId"), newTerminal.getIp() + ":" + 1, HeartBeatRate+2);
+					RedisUtils.setExpire(Constant.OnlineTerminals + ":" + terminal_id, newTerminal.getIp() + ":" + 1, TernimalExpireTime);
 				} else {
 					condTerminal.clear();
 					condTerminal.put("ip",terminalInfo.getAddress().getHostAddress());// deviceId 是终端的唯一标志
@@ -265,8 +272,9 @@ public class SocketMsgHandler implements ApplicationContextAware {
 			} else {
 				result =getMsqlEntityCtr().update("Terminal", "update", newTerminal);
 				if (result == 1) {
-					log.error("1111 the device has register,return ok!newTerminal=" + newTerminal.toString());
+					Log.d("test" , "newTerminal is registed " + terminal_id);
 					respBody.put("status", updSuccess);
+					RedisUtils.setExpire(Constant.OnlineTerminals + ":" + terminal_id, newTerminal.getIp() + ":" + 1, TernimalExpireTime);
 				} else {
 					condTerminal.clear();
 					condTerminal.put("ip",terminalInfo.getAddress().getHostAddress());// deviceId 是终端的唯一标志
@@ -314,7 +322,7 @@ public class SocketMsgHandler implements ApplicationContextAware {
 					WebSocketEndpoint.pushMsg(WebSocketEndpoint.PUSH_MSG_SES, jsonBody.getString("terminal_ip"),jsonBody.getString("terminal_id"), msgBody);
 				}	
 			} else {
-				log.info("2222v the device has newHelpInfo!device_id=" + jsonBody.getString("deviceId"));
+				log.info("2222v the device has newHelpInfo!device_id=" + terminal_id);
 				respBody.put("status", udpFailed);
 			}
 		} else if (cmd == cmds.REPORT_FILEDOWNLOAD_STATUS) {
@@ -391,7 +399,6 @@ public class SocketMsgHandler implements ApplicationContextAware {
 			}
 
 		}else if(cmd ==cmds.CHECK_TASK_STATUS) {
-			String terminal_id = jsonBody.getString("deviceId");
 			//String terminal_ip = terminalInfo.getAddress().getHostAddress();
 			JSONArray taskIdList = jsonBody.getJSONArray("taskIds");
 			JSONArray startTaskIds = new JSONArray();

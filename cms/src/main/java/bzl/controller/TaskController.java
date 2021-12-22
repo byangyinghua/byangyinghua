@@ -324,7 +324,7 @@ public class TaskController {
 		}
 		//修改某个终端不在线是，导致的任务下发过慢的问题
 		Map<String, Object> result2Web = new HashMap<String, Object>();
-		Map<Integer, JSONObject> RespMap = newSocketMsgHandler.getTerminalRespBySequece(sequeceMap, 2000);
+		Map<Integer, JSONObject> RespMap = newSocketMsgHandler.getTerminalRespBySequece(sequeceMap, 8000);
 		JSONArray resultList = new JSONArray();
 		int successCnt = 0;
 		if (RespMap != null && RespMap.size() > 0) {
@@ -959,7 +959,7 @@ public class TaskController {
 				}
 			}
 			Map<String, Object> result2Web = new HashMap<String, Object>();
-			Map<Integer, JSONObject> RespMap = newSocketMsgHandler.getTerminalRespBySequece(sequeceMap, 2000);
+			Map<Integer, JSONObject> RespMap = newSocketMsgHandler.getTerminalRespBySequece(sequeceMap, 8000);
 			//int failedCnt = 0;
 			int successCnt = 0;
 			if (RespMap != null && RespMap.size() > 0) {

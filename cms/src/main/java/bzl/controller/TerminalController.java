@@ -589,15 +589,17 @@ public class TerminalController {
 			if(devlist != null && devlist.size() > 0) {
 				JSONArray retDevList = new JSONArray();
 				devlist = Convert.SortDataListId(devlist, page, pagesize);
-				Map<Integer,String> sequeceMap = new HashMap<Integer,String> ();
-				for(int j=0;j<devlist.size();j++) {
-					String onlineInfo = RedisUtils.get(Constant.OnlineTerminals + ":" + (String) devlist.get(j).get("terminal_id"));
-					if(null != onlineInfo) {
-						int sequece = newSocketMsgHandler.sendMsgTo((String) devlist.get(j).get("ip"), cmds.GET_VOLUME, null);
-						 sequeceMap.put(sequece, (String) devlist.get(j).get("terminal_id"));
-					}
-				}
-				Map<Integer, JSONObject> RespMap = newSocketMsgHandler.getTerminalRespBySequece(sequeceMap, 2000);
+//				Map<Integer,String> sequeceMap = new HashMap<Integer,String> ();
+//				for(int j=0;j<devlist.size();j++) {
+//					String onlineInfo = RedisUtils.get(Constant.OnlineTerminals + ":" + (String) devlist.get(j).get("terminal_id"));
+//					if(null != onlineInfo) {
+//						int sequece = newSocketMsgHandler.sendMsgTo((String) devlist.get(j).get("ip"), cmds.GET_VOLUME, null);
+//						 sequeceMap.put(sequece, (String) devlist.get(j).get("terminal_id"));
+//					}
+//				}
+//				Log.d("test" , "testB");
+//				Map<Integer, JSONObject> RespMap = newSocketMsgHandler.getTerminalRespBySequece(sequeceMap, 2000);
+//				Log.d("test" , "testC");
 				for(int i=0;i<devlist.size();i++) {
 					JSONObject newTerminal = new JSONObject();
 					conMap.clear();
@@ -615,32 +617,37 @@ public class TerminalController {
 					}else {
 						newTerminal.put("gids",new JSONArray());
 					}
-					
+
 					String onlineInfo = RedisUtils.get(Constant.OnlineTerminals + ":" + (String) devlist.get(i).get("terminal_id"));
 					if(null != onlineInfo) {
 						String state = onlineInfo.split(":")[1];
 						newTerminal.put("state",Integer.parseInt(state));
+						Log.d("test", "onLineInfo state " + state);
 					}else {
 						newTerminal.put("state",0);
 					}
-					newTerminal.put("volume",0);//先设置为０,然后下面会设置成设备返回的值
-					if (RespMap != null && RespMap.size() > 0) {
-						for (Integer key : RespMap.keySet()) {
-							String tmpTerminalIP = RespMap.get(key).getString("terminal_ip");
-							if(tmpTerminalIP.equals((String) devlist.get(i).get("ip"))) {
-								JSONObject terminalRespJson = JSONObject.parseObject(RespMap.get(key).getString("resp"));
-								result = (int) terminalRespJson.get("status");
-								if (result == 1) {
-									JSONObject Volume =  terminalRespJson.getJSONObject("result");
-									newTerminal.put("volume",Volume.get("currentVolumn"));
-								}else {
-									newTerminal.put("volume",0);
-								}
-								RespMap.remove(key);
-								break;
-							}
-						}
+					if(devlist.get(i).containsKey("volume")) {
+						newTerminal.put("volume", devlist.get(i).get("volume"));
+					}else{
+						newTerminal.put("volume", 101);
 					}
+//					if (RespMap != null && RespMap.size() > 0) {
+//						for (Integer key : RespMap.keySet()) {
+//							String tmpTerminalIP = RespMap.get(key).getString("terminal_ip");
+//							if(tmpTerminalIP.equals((String) devlist.get(i).get("ip"))) {
+//								JSONObject terminalRespJson = JSONObject.parseObject(RespMap.get(key).getString("resp"));
+//								result = (int) terminalRespJson.get("status");
+//								if (result == 1) {
+//									JSONObject Volume =  terminalRespJson.getJSONObject("result");
+//									newTerminal.put("volume",Volume.get("currentVolumn"));
+//								}else {
+//									newTerminal.put("volume",0);
+//								}
+//								RespMap.remove(key);
+//								break;
+//							}
+//						}
+//					}
 					
 					newTerminal.put("boot_time",(String)devlist.get(i).get("boot_time"));
 					newTerminal.put("shutdown_time",(String)devlist.get(i).get("shutdown_time"));
