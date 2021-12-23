@@ -59,6 +59,7 @@ public class SystemInit implements ApplicationContextAware{
 				 newUser.setUsername("admin");//默认密码
 				 newUser.setPassword(EncryptionUtil.md5Hex(newUser.getUsername() + password +Constant.loginSalt));
 				 newUser.setIs_supper(1);
+				 newUser.setCreate_time(new Date());
 			     result = es.insert("User", "insert", newUser);
 			 }
 		}

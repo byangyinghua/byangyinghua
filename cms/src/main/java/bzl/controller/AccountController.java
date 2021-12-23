@@ -222,7 +222,9 @@ public class AccountController {
 				    	log.error("新增用户登录信息失败:");
 				    	log.error(tmpLog);
 				    }else {
-				    	RedisUtils.setExpire(Constant.UserSession + passwordMD5, userInfos, loginExpiredSec);//存储用户登录信息
+//				    	RedisUtils.setExpire(Constant.UserSession + passwordMD5, userInfos, loginExpiredSec);//存储用户登录信息
+						//改为登录长期有效
+						RedisUtils.set(Constant.UserSession + passwordMD5, userInfos);
 				    }
 				} catch (Exception e1) {
 					// TODO Auto-generated catch block
